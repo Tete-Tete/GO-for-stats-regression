@@ -3,10 +3,9 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"time"
 
-	"gonum.org/v1/gonum/stat"
+	"github.com/montanaflynn/stats"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/vg"
@@ -30,8 +29,8 @@ var datasets = []struct {
 		y: []float64{7.46, 6.77, 12.74, 7.11, 7.81, 8.84, 6.08, 5.39, 8.15, 6.42, 5.73},
 	},
 	{
-		x: []float64{8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0},
-		y: []float64{6.58, 5.76, 7.71, 8.84, 8.47, 7.04, 5.25, 5.56, 7.91, 6.89, 12.50},
+		x: []float64{8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 19.0, 8.0, 8.0, 8.0},
+		y: []float64{6.58, 5.76, 7.71, 8.84, 8.47, 7.04, 5.25, 12.5, 5.56, 7.91, 6.89},
 	},
 }
 
@@ -61,29 +60,49 @@ func runLinearRegressionTests() {
 		}
 
 		start := time.Now()
-		slope, intercept := linearRegression(data.x, data.y)
+		slope, intercept, err := calculateRegression(data.x, data.y)
 		duration := time.Since(start)
 
-		fmt.Printf("Dataset %d:\n", i+1)
-		fmt.Printf("Slope: %.2f\n", slope)
-		fmt.Printf("Intercept: %.2f\n", intercept)
-		fmt.Printf("Execution time: %v\n\n", duration)
+		if err != nil {
+			fmt.Printf("Dataset %d: ERROR: %v\n\n", i+1, err)
+			continue
+		}
 
-		if math.Abs(slope-0.5) > tolerance || (i == 3 && math.Abs(slope) > tolerance) {
-			fmt.Printf("ERROR: Expected slope close to %.2f, but got %.2f\n", 0.5, slope)
-		}
-		if (i < 3 && math.Abs(intercept-3.0) > tolerance) || (i == 3 && math.Abs(intercept-7.5) > tolerance) {
-			fmt.Printf("ERROR: Expected intercept close to %.2f, but got %.2f\n", 3.0, intercept)
-		}
+		fmt.Printf("Dataset %d:\n", i+1)
+		fmt.Printf("Slope: %.6f\n", slope)
+		fmt.Printf("Intercept: %.6f\n", intercept)
+		fmt.Printf("Execution time: %v\n\n", duration)
 
 		plotDataWithRegressionLine(i+1, data.x, data.y, slope, intercept)
 	}
 }
 
-func linearRegression(x, y []float64) (slope, intercept float64) {
-	// Use stat.LinearRegression to calculate slope and intercept
-	slope, intercept = stat.LinearRegression(x, y, nil, false)
-	return
+func calculateRegression(x, y []float64) (float64, float64, error) {
+	// Convert x and y to stats.Series
+	series := toSeries(x, y)
+
+	// Calculate linear regression manually
+	sum := [5]float64{}
+	for i := range series {
+		sum[0] += series[i].X
+		sum[1] += series[i].Y
+		sum[2] += series[i].X * series[i].X
+		sum[3] += series[i].X * series[i].Y
+		sum[4] += series[i].Y * series[i].Y
+	}
+	f := float64(len(series))
+	gradient := (f*sum[3] - sum[0]*sum[1]) / (f*sum[2] - sum[0]*sum[0])
+	intercept := (sum[1] / f) - (gradient * sum[0] / f)
+
+	return gradient, intercept, nil
+}
+
+func toSeries(x, y []float64) stats.Series {
+	s := make(stats.Series, len(x))
+	for i := range x {
+		s[i] = stats.Coordinate{X: x[i], Y: y[i]}
+	}
+	return s
 }
 
 func plotDataWithRegressionLine(datasetNumber int, x, y []float64, slope, intercept float64) {

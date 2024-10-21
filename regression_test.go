@@ -33,17 +33,22 @@ func TestLinearRegression(t *testing.T) {
 			intercept: 3.0,
 		},
 		{
-			x:         []float64{8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0},
-			y:         []float64{6.58, 5.76, 7.71, 8.84, 8.47, 7.04, 5.25, 5.56, 7.91, 6.89, 12.50},
-			slope:     0.0,
-			intercept: 7.5,
+			x:         []float64{8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 19.0, 8.0, 8.0, 8.0},
+			y:         []float64{6.58, 5.76, 7.71, 8.84, 8.47, 7.04, 5.25, 12.5, 5.56, 7.91, 6.89},
+			slope:     0.5,
+			intercept: 3.0,
 		},
 	}
 
 	for _, test := range tests {
 		start := time.Now()
-		slope, intercept := linearRegression(test.x, test.y)
+		slope, intercept, err := calculateRegression(test.x, test.y)
 		duration := time.Since(start)
+
+		if err != nil {
+			t.Errorf("Error calculating regression: %v", err)
+			continue
+		}
 
 		if math.IsNaN(slope) || math.IsNaN(intercept) {
 			t.Errorf("Calculation resulted in NaN values for slope or intercept")
@@ -51,11 +56,11 @@ func TestLinearRegression(t *testing.T) {
 		}
 
 		if math.Abs(slope-test.slope) > tolerance {
-			t.Errorf("Expected slope %.2f, but got %.2f", test.slope, slope)
+			t.Errorf("Expected slope %.6f, but got %.6f", test.slope, slope)
 		}
 
 		if math.Abs(intercept-test.intercept) > tolerance {
-			t.Errorf("Expected intercept %.2f, but got %.2f", test.intercept, intercept)
+			t.Errorf("Expected intercept %.6f, but got %.6f", test.intercept, intercept)
 		}
 
 		t.Logf("Execution time: %v", duration)
